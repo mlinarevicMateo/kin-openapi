@@ -173,3 +173,70 @@ paths:
 		}
 	}
 }
+
+func TestValidationWithIntegerEnumInPathParams(t *testing.T) {
+	const spec = `
+openapi: 3.0.0
+info:
+  title: Example integer enum
+  version: '0.1'
+paths:
+  /sample/{exenum}:
+    put:
+      parameters:
+        - in: path
+          name: exenum
+          required: true
+          schema:
+            type: integer
+            format: int32
+            enum:
+              - 1
+              - 2
+              - 3
+      responses:
+        '200':
+          description: Ok
+`
+
+	loader := openapi3.NewLoader()
+	doc, err := loader.LoadFromData([]byte(spec))
+	require.NoError(t, err)
+
+	router, err := legacyrouter.NewRouter(doc)
+	require.NoError(t, err)
+
+	tests := []struct {
+		path    string
+		wantErr bool
+	}{
+		{
+			path:    "/sample/1",
+			wantErr: false,
+		},
+		{
+			path:    "/sample/5",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		req, err := http.NewRequest("PUT", tt.path, nil)
+		require.NoError(t, err)
+
+		route, pathParams, err := router.FindRoute(req)
+		require.NoError(t, err)
+
+		requestValidationInput := &RequestValidationInput{
+			Request:    req,
+			PathParams: pathParams,
+			Route:      route,
+		}
+		err = ValidateRequest(loader.Context, requestValidationInput)
+		if tt.wantErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}
