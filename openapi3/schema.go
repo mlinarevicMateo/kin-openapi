@@ -1168,6 +1168,11 @@ func (schema *Schema) visitSetOperations(settings *schemaValidationSettings, val
 				if v == f {
 					return
 				}
+			case int, int32, int64:
+				val := reflect.ValueOf(c).Convert(reflect.TypeOf(float64(0))).Float()
+				if val == v {
+					return
+				}
 			default:
 				if reflect.DeepEqual(v, value) {
 					return
